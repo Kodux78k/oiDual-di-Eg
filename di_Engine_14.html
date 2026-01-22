@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orb OS Ultimate // Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        di_dark: '#050505',
+                        di_card: '#0f0f11',
+                        di_panel: '#16161a',
+                        di_border: '#242429',
+                        di_accent: '#00f2ff',
+                        di_secondary: '#bd00ff',
+                        di_success: '#10b981',
+                        di_danger: '#ef4444',
+                        di_text: '#f0f0f0',
+                        di_muted: '#64748b'
+                    },
+                    animation: {
+                        'di-spin-slow': 'spin 12s linear infinite',
+                        'di-pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+                        'di-float': 'float 6s ease-in-out infinite',
+                        'di-scan': 'scan 2s linear infinite',
+                    },
+                    keyframes: {
+                        'pulse-glow': {
+                            '0%, 100%': { opacity: 1, filter: 'drop-shadow(0 0 10px rgba(0, 242, 255, 0.3))' },
+                            '50%': { opacity: 0.7, filter: 'drop-shadow(0 0 20px rgba(0, 242, 255, 0.6))' },
+                        },
+                        'float': {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        'scan': {
+                            '0%': { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(100%)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* OS Aesthetics */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--di_dark); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+        
+        body { background-color: #050505; color: #f0f0f0; }
+
+        .di-glass {
+            background: rgba(22, 22, 26, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* LED Styles */
+        .di-led {
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: #333; box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        .di-led.on-green {
+            background-color: #00f2ff;
+            box-shadow: 0 0 8px #00f2ff, inset 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .di-led.on-red {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px #ef4444, inset 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* Checkered Background for Preview */
+        .di-checkered {
+            background-image: 
+                linear-gradient(45deg, #111 25%, transparent 25%), 
+                linear-gradient(-45deg, #111 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #111 75%), 
+                linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        /* Slider Customization */
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 4px; background: #333; border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: #00f2ff; cursor: pointer; border: 2px solid #000;
+            box-shadow: 0 0 10px rgba(0,242,255,0.5);
+        }
+
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col font-sans selection:bg-di_accent selection:text-black">
+
+    <!-- TOP BAR / HEADER -->
+    <header class="h-14 bg-di_panel/90 border-b border-di_border flex items-center justify-between px-6 z-50 backdrop-blur-md">
+        <div class="flex items-center gap-4">
+            <div class="w-8 h-8 rounded bg-di_accent/10 flex items-center justify-center border border-di_accent/30 text-di_accent animate-pulse">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h1 class="font-bold tracking-widest text-sm text-gray-200">ORB OS <span class="text-di_accent text-xs">ULTIMATE</span></h1>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <!-- Quick Import -->
+            <button onclick="document.getElementById('di_fileInput').click()" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded bg-di_border/50 hover:bg-di_accent/20 hover:text-di_accent transition text-xs font-mono border border-transparent hover:border-di_accent/50">
+                <i class="fa-solid fa-upload"></i> IMPORTAR HTML
+            </button>
+
+            <!-- Status LEDs -->
+            <div class="flex items-center gap-4 bg-black/40 px-4 py-1.5 rounded-full border border-white/5">
+                <div class="flex items-center gap-2" title="User Name">
+                    <div id="di_led_user" class="di-led"></div>
+                    <span class="text-[10px] text-di_muted font-mono tracking-wider">USR</span>
+                </div>
+                <div class="flex items-center gap-2" title="Model Name">
+                    <div id="di_led_model" class="di-led"></div>
+                    <span class="text-[10px] text-di_muted font-mono tracking-wider">MOD</span>
+                </div>
+                <div class="flex items-center gap-2" title="API Key">
+                    <div id="di_led_key" class="di-led"></div>
+                    <span class="text-[10px] text-di_muted font-mono tracking-wider">KEY</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN LAYOUT -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-16 lg:w-64 bg-di_card border-r border-di_border flex flex-col justify-between z-40">
+            <nav class="flex flex-col gap-2 p-3 mt-4">
+                <button onclick="di_navigate('home')" class="di-nav-btn group flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition text-di_muted hover:text-white active:text-di_accent active:bg-di_accent/10">
+                    <i class="fa-solid fa-house w-6 text-center"></i>
+                    <span class="hidden lg:block text-sm font-medium">Dashboard</span>
+                </button>
+                <button onclick="di_navigate('extractor')" class="di-nav-btn group flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition text-di_muted hover:text-white">
+                    <i class="fa-solid fa-dna w-6 text-center group-hover:text-di_accent"></i>
+                    <span class="hidden lg:block text-sm font-medium">Extractor & Lab</span>
+                </button>
+                <button onclick="di_navigate('cssmaster')" class="di-nav-btn group flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition text-di_muted hover:text-white">
+                    <i class="fa-brands fa-css3 w-6 text-center group-hover:text-di_secondary"></i>
+                    <span class="hidden lg:block text-sm font-medium">Root Master</span>
+                </button>
+                <div class="h-px bg-di_border my-2"></div>
+                <button onclick="di_navigate('config')" class="di-nav-btn group flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition text-di_muted hover:text-white">
+                    <i class="fa-solid fa-sliders w-6 text-center"></i>
+                    <span class="hidden lg:block text-sm font-medium">Configurações</span>
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-di_border">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-di_success animate-pulse"></div>
+                    <span class="hidden lg:block text-xs text-di_muted font-mono">SYSTEM ONLINE</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CONTENT AREA -->
+        <main class="flex-1 relative overflow-hidden bg-di_dark">
+            
+            <!-- VIEW: HOME / DASHBOARD -->
+            <div id="di_view_home" class="di-view h-full w-full flex flex-col items-center justify-center p-8 relative overflow-y-auto animate-fade-in">
+                
+                <!-- Background Decoration -->
+                <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-di_accent/10 rounded-full blur-[100px]"></div>
+                </div>
+
+                <!-- THE ORB 2D SVG -->
+                <div class="relative z-10 mb-12 transform hover:scale-105 transition duration-500 cursor-pointer" onclick="di_navigate('extractor')">
+                    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-64 h-64 drop-shadow-[0_0_30px_rgba(0,242,255,0.3)]">
+                        <!-- Orbit Rings -->
+                        <circle cx="100" cy="100" r="90" stroke="#1e293b" stroke-width="1" />
+                        <circle cx="100" cy="100" r="90" stroke="#00f2ff" stroke-width="2" stroke-dasharray="20 180" stroke-linecap="round" class="animate-di-spin-slow opacity-80" />
+                        <circle cx="100" cy="100" r="75" stroke="#bd00ff" stroke-width="1" stroke-dasharray="4 4" class="animate-[spin_20s_linear_infinite_reverse] opacity-50" />
+                        
+                        <!-- Core Geometry -->
+                        <path d="M100 45 L148 72 L148 128 L100 155 L52 128 L52 72 Z" stroke="#00f2ff" stroke-width="1" fill="rgba(0, 242, 255, 0.05)" class="animate-pulse" />
+                        
+                        <!-- Inner Energy -->
+                        <circle cx="100" cy="100" r="30" fill="url(#grad1)" class="animate-di-pulse-glow" />
+                        <defs>
+                            <radialGradient id="grad1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(100 100) rotate(90) scale(30)">
+                                <stop stop-color="#00f2ff" />
+                                <stop offset="1" stop-color="#00f2ff" stop-opacity="0" />
+                            </radialGradient>
+                        </defs>
+                    </svg>
+                    <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-center w-full">
+                        <span class="text-xs font-mono text-di_accent tracking-[0.2em] uppercase opacity-70">Aguardando Input</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl relative z-10">
+                    <div onclick="di_navigate('extractor')" class="di-glass p-6 rounded-xl hover:border-di_accent/50 transition cursor-pointer group">
+                        <h3 class="text-di_text font-bold mb-2 group-hover:text-di_accent"><i class="fa-solid fa-bolt mr-2"></i>Smart Extractor</h3>
+                        <p class="text-sm text-di_muted">Identifica e isola automaticamente componentes "Orb" ou SVGs de qualquer HTML.</p>
+                    </div>
+                    <div onclick="di_navigate('cssmaster')" class="di-glass p-6 rounded-xl hover:border-di_secondary/50 transition cursor-pointer group">
+                        <h3 class="text-di_text font-bold mb-2 group-hover:text-di_secondary"><i class="fa-brands fa-css3 mr-2"></i>Root Master</h3>
+                        <p class="text-sm text-di_muted">Gerencie variáveis CSS (:root), crie presets de temas e unifique estilos.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: EXTRACTOR & LAB -->
+            <div id="di_view_extractor" class="di-view hidden h-full flex flex-col p-6 animate-fade-in">
+                <!-- Toolbar -->
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold font-mono text-white"><i class="fa-solid fa-code text-di_accent mr-2"></i>LABORATÓRIO DE EXTRAÇÃO</h2>
+                    <div class="flex gap-2">
+                         <input type="file" id="di_fileInput" class="hidden" accept=".html,.txt,.css" onchange="di_handleFileUpload(this)">
+                         <button onclick="document.getElementById('di_fileInput').click()" class="bg-di_panel hover:bg-white/10 text-white px-4 py-2 rounded text-xs font-bold border border-di_border transition">
+                            <i class="fa-solid fa-folder-open mr-2"></i>CARREGAR ARQUIVO
+                         </button>
+                         <button onclick="di_processExtraction()" class="bg-di_accent hover:bg-cyan-400 text-black px-4 py-2 rounded text-xs font-bold shadow-[0_0_15px_rgba(0,242,255,0.3)] transition">
+                            <i class="fa-solid fa-play mr-2"></i>PROCESSAR ORB
+                         </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+                    
+                    <!-- LEFT: INPUT & CODE -->
+                    <div class="lg:col-span-5 flex flex-col gap-4 min-h-0">
+                        <div class="flex-1 flex flex-col relative group">
+                            <label class="text-[10px] font-mono text-di_muted uppercase mb-1 flex justify-between">
+                                <span>Input Source (HTML)</span>
+                                <span class="text-di_accent cursor-pointer hover:underline" onclick="document.getElementById('di_inputSource').value=''">Limpar</span>
+                            </label>
+                            <textarea id="di_inputSource" class="flex-1 bg-black/40 border border-di_border rounded-lg p-4 font-mono text-xs text-gray-400 focus:outline-none focus:border-di_accent resize-none code-font" placeholder="<!-- Cole seu código aqui ou arraste um arquivo... -->"></textarea>
+                            <!-- Drag Overlay -->
+                            <div id="di_dropZone" class="hidden absolute inset-0 bg-di_accent/10 border-2 border-dashed border-di_accent rounded-lg flex items-center justify-center backdrop-blur-sm pointer-events-none">
+                                <span class="text-di_accent font-bold">SOLTE O ARQUIVO AQUI</span>
+                            </div>
+                        </div>
+                        
+                        <div class="h-1/3 flex flex-col">
+                            <label class="text-[10px] font-mono text-di_muted uppercase mb-1 flex justify-between">
+                                <span>Código Extraído</span>
+                                <div class="flex gap-2">
+                                    <button onclick="di_copyCode()" class="hover:text-white"><i class="fa-regular fa-copy"></i></button>
+                                    <button onclick="di_downloadOrb()" class="hover:text-di_accent"><i class="fa-solid fa-download"></i></button>
+                                </div>
+                            </label>
+                            <textarea id="di_outputCode" readonly class="flex-1 bg-di_panel border border-di_border rounded-lg p-3 font-mono text-[10px] text-di_success focus:outline-none resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: PREVIEW & VISUAL LAB (Nebula Style) -->
+                    <div class="lg:col-span-7 flex flex-col gap-4">
+                        
+                        <!-- PREVIEW CANVAS -->
+                        <div class="flex-1 bg-black rounded-lg border border-di_border relative overflow-hidden flex flex-col">
+                            <div class="bg-di_panel border-b border-di_border px-3 py-1 flex justify-between items-center">
+                                <span class="text-[10px] font-mono text-di_muted">CANVAS PREVIEW</span>
+                                <div class="flex gap-1">
+                                    <div class="w-2 h-2 rounded-full bg-red-500/50"></div>
+                                    <div class="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                                    <div class="w-2 h-2 rounded-full bg-green-500/50"></div>
+                                </div>
+                            </div>
+                            <div class="flex-1 relative di-checkered flex items-center justify-center overflow-auto" id="di_previewContainer">
+                                <p class="text-di_muted text-xs font-mono">Nenhum componente renderizado</p>
+                            </div>
+                        </div>
+
+                        <!-- VISUAL LAB CONTROLS -->
+                        <div class="h-auto bg-di_card border border-di_border rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-xs font-bold text-di_secondary"><i class="fa-solid fa-sliders mr-2"></i>VISUAL MODULATOR</h3>
+                                <button onclick="di_resetVisuals()" class="text-[10px] text-di_muted hover:text-white">RESET</button>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-x-8 gap-y-2">
+                                <!-- Sliders -->
+                                <div>
+                                    <div class="flex justify-between text-[10px] text-di_muted mb-1">
+                                        <span>ESCALA</span> <span id="di_val_scale" class="text-di_accent">1.0</span>
+                                    </div>
+                                    <input type="range" id="di_range_scale" min="0.5" max="2.0" step="0.1" value="1.0" oninput="di_updateVisuals()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] text-di_muted mb-1">
+                                        <span>OPACIDADE</span> <span id="di_val_opacity" class="text-di_accent">100%</span>
+                                    </div>
+                                    <input type="range" id="di_range_opacity" min="0" max="1" step="0.05" value="1" oninput="di_updateVisuals()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] text-di_muted mb-1">
+                                        <span>POSIÇÃO Y</span> <span id="di_val_y" class="text-di_accent">0px</span>
+                                    </div>
+                                    <input type="range" id="di_range_y" min="-100" max="100" step="10" value="0" oninput="di_updateVisuals()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] text-di_muted mb-1">
+                                        <span>BLUR (FX)</span> <span id="di_val_blur" class="text-di_accent">0px</span>
+                                    </div>
+                                    <input type="range" id="di_range_blur" min="0" max="20" step="1" value="0" oninput="di_updateVisuals()">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: ROOT CSS MASTER -->
+            <div id="di_view_cssmaster" class="di-view hidden h-full p-6 flex flex-col animate-fade-in">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold font-mono text-white"><i class="fa-brands fa-css3 text-di_secondary mr-2"></i>ROOT VAR MASTER</h2>
+                        <p class="text-xs text-di_muted mt-1">Extraia, edite e unifique variáveis globais do CSS.</p>
+                    </div>
+                    <button onclick="di_extractRoot()" class="bg-di_secondary hover:bg-purple-600 text-white px-4 py-2 rounded text-xs font-bold transition">
+                        <i class="fa-solid fa-flask mr-2"></i>EXTRAIR :ROOT DO INPUT
+                    </button>
+                </div>
+
+                <div class="flex-1 bg-di_card border border-di_border rounded-xl overflow-hidden flex flex-col">
+                    <div class="bg-black/20 p-2 border-b border-di_border grid grid-cols-12 gap-4 text-[10px] font-mono text-di_muted font-bold uppercase">
+                        <div class="col-span-4 pl-2">Variável</div>
+                        <div class="col-span-6">Valor</div>
+                        <div class="col-span-2 text-right pr-2">Ação</div>
+                    </div>
+                    <div id="di_cssList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Items injected via JS -->
+                        <div class="text-center mt-20 text-di_muted text-xs">
+                            <i class="fa-solid fa-wind text-2xl mb-2 opacity-50"></i><br>
+                            Nenhuma variável encontrada.<br>Carregue um HTML e clique em Extrair.
+                        </div>
+                    </div>
+                    <div class="bg-di_panel p-4 border-t border-di_border flex justify-between items-center">
+                        <span class="text-xs text-di_muted" id="di_varCount">0 variáveis</span>
+                        <div class="flex gap-2">
+                             <button onclick="di_downloadCSS()" class="px-3 py-1.5 bg-black border border-di_border rounded text-xs text-white hover:border-di_secondary transition">
+                                <i class="fa-solid fa-download mr-1"></i> Baixar .CSS
+                             </button>
+                             <button onclick="di_savePreset()" class="px-3 py-1.5 bg-di_secondary/20 border border-di_secondary/50 rounded text-xs text-di_secondary hover:bg-di_secondary hover:text-white transition">
+                                <i class="fa-solid fa-save mr-1"></i> Salvar Preset
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CONFIG -->
+            <div id="di_view_config" class="di-view hidden h-full flex items-center justify-center animate-fade-in">
+                <div class="w-full max-w-lg bg-di_card border border-di_border rounded-xl p-8 shadow-2xl">
+                    <h2 class="text-lg font-bold text-white mb-6 border-b border-di_border pb-4">Configurações do Sistema</h2>
+                    
+                    <div class="space-y-5">
+                        <div class="group">
+                            <label class="block text-xs font-mono text-di_muted mb-1 group-focus-within:text-di_accent transition">di_userName</label>
+                            <input type="text" id="di_input_userName" oninput="di_saveConfig()" class="w-full bg-black border border-di_border rounded p-2 text-sm text-white focus:border-di_accent focus:outline-none transition">
+                        </div>
+                        <div class="group">
+                            <label class="block text-xs font-mono text-di_muted mb-1 group-focus-within:text-di_accent transition">di_modelName (OpenRouter)</label>
+                            <input type="text" id="di_input_modelName" oninput="di_saveConfig()" class="w-full bg-black border border-di_border rounded p-2 text-sm text-white focus:border-di_accent focus:outline-none transition">
+                        </div>
+                        <div class="group">
+                            <label class="block text-xs font-mono text-di_muted mb-1 group-focus-within:text-di_accent transition">di_apiKey</label>
+                            <div class="relative">
+                                <input type="password" id="di_input_apiKey" oninput="di_saveConfig()" class="w-full bg-black border border-di_border rounded p-2 text-sm text-white focus:border-di_accent focus:outline-none transition">
+                                <i class="fa-solid fa-eye absolute right-3 top-2.5 text-di_muted cursor-pointer hover:text-white" onclick="di_togglePass()"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex justify-end">
+                        <span id="di_saveMsg" class="text-xs text-di_success opacity-0 transition duration-500">
+                            <i class="fa-solid fa-check mr-1"></i> Sincronizado
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="di_toast" class="fixed bottom-5 right-5 bg-di_panel border border-di_accent text-white px-4 py-3 rounded shadow-[0_0_20px_rgba(0,242,255,0.2)] transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-3">
+        <i class="fa-solid fa-circle-info text-di_accent"></i>
+        <span class="text-xs font-mono" id="di_toastMsg">System Ready</span>
+    </div>
+
+    <script>
+        // --- ORB OS KERNEL V3 ---
+        
+        // State Management
+        const di_appState = {
+            extractedHTML: '',
+            extractedCSS: '',
+            rootVars: {},
+            visuals: { scale: 1, opacity: 1, y: 0, blur: 0 }
+        };
+
+        const DI_KEYS = { USER: 'di_userName', MODEL: 'di_modelName', KEY: 'di_apiKey' };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            di_loadConfig();
+            
+            // Drag and Drop Logic
+            const dropZone = document.getElementById('di_dropZone');
+            const inputArea = document.getElementById('di_inputSource').parentNode;
+
+            window.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('hidden');
+            });
+
+            window.addEventListener('dragleave', (e) => {
+                if (e.target === dropZone) dropZone.classList.add('hidden');
+            });
+
+            window.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('hidden');
+                if (e.dataTransfer.files.length) {
+                    di_handleFileUpload({ files: e.dataTransfer.files });
+                }
+            });
+        });
+
+        // --- NAVIGATION ---
+        function di_navigate(view) {
+            document.querySelectorAll('.di-view').forEach(el => {
+                el.classList.add('hidden');
+            });
+            const target = document.getElementById(`di_view_${view}`);
+            target.classList.remove('hidden');
+            
+            // Update Sidebar Active State
+            document.querySelectorAll('.di-nav-btn').forEach(btn => {
+                btn.classList.remove('bg-white/10', 'text-white', 'text-di_accent', 'text-di_secondary');
+                btn.classList.add('text-di_muted');
+            });
+            // Simple active highlight logic would go here if IDs were on buttons
+        }
+
+        // --- CONFIG & STORAGE ---
+        function di_loadConfig() {
+            document.getElementById('di_input_userName').value = localStorage.getItem(DI_KEYS.USER) || '';
+            document.getElementById('di_input_modelName').value = localStorage.getItem(DI_KEYS.MODEL) || '';
+            document.getElementById('di_input_apiKey').value = localStorage.getItem(DI_KEYS.KEY) || '';
+            di_updateLeds();
+        }
+
+        function di_saveConfig() {
+            localStorage.setItem(DI_KEYS.USER, document.getElementById('di_input_userName').value);
+            localStorage.setItem(DI_KEYS.MODEL, document.getElementById('di_input_modelName').value);
+            localStorage.setItem(DI_KEYS.KEY, document.getElementById('di_input_apiKey').value);
+            
+            di_updateLeds();
+            
+            const msg = document.getElementById('di_saveMsg');
+            msg.classList.remove('opacity-0');
+            setTimeout(() => msg.classList.add('opacity-0'), 1500);
+        }
+
+        function di_updateLeds() {
+            const check = (key, id) => {
+                const val = localStorage.getItem(key);
+                const el = document.getElementById(id);
+                el.className = 'di-led ' + (val ? 'on-green' : 'on-red');
+            };
+            check(DI_KEYS.USER, 'di_led_user');
+            check(DI_KEYS.MODEL, 'di_led_model');
+            check(DI_KEYS.KEY, 'di_led_key');
+        }
+
+        function di_togglePass() {
+            const el = document.getElementById('di_input_apiKey');
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        // --- FILE HANDLING ---
+        function di_handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('di_inputSource').value = e.target.result;
+                di_navigate('extractor');
+                di_notify(`Arquivo carregado: ${file.name}`);
+                // Auto trigger root extraction if in css master view?
+            };
+            reader.readAsText(file);
+        }
+
+        // --- EXTRACTION ENGINE (CORE) ---
+        function di_processExtraction() {
+            const raw = document.getElementById('di_inputSource').value;
+            if (!raw.trim()) return di_notify("Input vazio!");
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(raw, 'text/html');
+
+            // 1. Find the ORB (Heuristics)
+            // Priority: #orb-canvas, classes with 'orb', 'canvas', 'hero', or pure SVG
+            let target = doc.querySelector('#orb-canvas') || 
+                         doc.querySelector('.orb-container') ||
+                         doc.querySelector('[class*="orb"]') ||
+                         doc.querySelector('svg');
+
+            if (!target) {
+                // Fallback: try to get the first significant div
+                const divs = doc.querySelectorAll('div');
+                for(let d of divs) {
+                    if(d.innerHTML.includes('svg') || d.className.includes('anim')) {
+                        target = d;
+                        break;
+                    }
+                }
+            }
+
+            if (!target) return di_notify("Nenhum componente Orb detectado.");
+
+            // 2. Extract HTML
+            di_appState.extractedHTML = target.outerHTML;
+
+            // 3. Extract CSS (Naive approach: grab all styles, or look for Tailwind)
+            let styles = "";
+            doc.querySelectorAll('style').forEach(s => styles += s.innerHTML + "\n");
+            di_appState.extractedCSS = styles;
+
+            // 4. Update UI
+            di_renderPreview();
+            
+            // Build Clean Code Snippet
+            const snippet = `<!-- Orb OS Component Extraction -->
+<div id="orb-root" class="relative flex items-center justify-center">
+${di_appState.extractedHTML}
+</div>
+<style>
+${styles}
+</style>`;
+            document.getElementById('di_outputCode').value = snippet;
+            di_notify("Extração concluída com sucesso.");
+        }
+
+        function di_renderPreview() {
+            const container = document.getElementById('di_previewContainer');
+            container.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.id = 'di_preview_target';
+            wrapper.style.transition = 'all 0.2s ease';
+            wrapper.innerHTML = di_appState.extractedHTML;
+
+            // Apply collected Styles (Scoped ideally, but global for preview is fine)
+            const styleTag = document.createElement('style');
+            styleTag.textContent = di_appState.extractedCSS;
+            
+            // Allow Tailwind CDN if not present in input
+            if(!di_appState.extractedCSS.includes('tailwind')) {
+               // We assume main document tailwind covers it, or inject basic styles
+            }
+
+            container.appendChild(styleTag);
+            container.appendChild(wrapper);
+            
+            di_updateVisuals(); // Apply current slider values
+        }
+
+        // --- VISUAL LAB LOGIC ---
+        function di_updateVisuals() {
+            const target = document.getElementById('di_preview_target');
+            if (!target) return;
+
+            const scale = document.getElementById('di_range_scale').value;
+            const op = document.getElementById('di_range_opacity').value;
+            const y = document.getElementById('di_range_y').value;
+            const blur = document.getElementById('di_range_blur').value;
+
+            // Update Labels
+            document.getElementById('di_val_scale').innerText = scale + 'x';
+            document.getElementById('di_val_opacity').innerText = Math.round(op*100) + '%';
+            document.getElementById('di_val_y').innerText = y + 'px';
+            document.getElementById('di_val_blur').innerText = blur + 'px';
+
+            // Apply Styles
+            target.style.transform = `scale(${scale}) translateY(${y}px)`;
+            target.style.opacity = op;
+            target.style.filter = `blur(${blur}px)`;
+            
+            // Update State
+            di_appState.visuals = { scale, opacity: op, y, blur };
+        }
+
+        function di_resetVisuals() {
+            document.getElementById('di_range_scale').value = 1;
+            document.getElementById('di_range_opacity').value = 1;
+            document.getElementById('di_range_y').value = 0;
+            document.getElementById('di_range_blur').value = 0;
+            di_updateVisuals();
+        }
+
+        // --- ROOT CSS MASTER ENGINE ---
+        function di_extractRoot() {
+            const raw = document.getElementById('di_inputSource').value;
+            if (!raw.trim()) return di_notify("Input vazio! Carregue HTML primeiro.");
+
+            // Regex to find :root { ... } content
+            const rootRegex = /:root\s*{([^}]+)}/g;
+            let match;
+            di_appState.rootVars = {};
+
+            while ((match = rootRegex.exec(raw)) !== null) {
+                const content = match[1];
+                // Split by ;
+                const decls = content.split(';');
+                decls.forEach(decl => {
+                    const parts = decl.split(':');
+                    if (parts.length === 2) {
+                        const key = parts[0].trim();
+                        const val = parts[1].trim();
+                        if (key.startsWith('--')) {
+                            di_appState.rootVars[key] = val;
+                        }
+                    }
+                });
+            }
+
+            di_renderRootList();
+            di_notify("Variáveis CSS extraídas.");
+        }
+
+        function di_renderRootList() {
+            const list = document.getElementById('di_cssList');
+            list.innerHTML = '';
+            
+            const keys = Object.keys(di_appState.rootVars);
+            document.getElementById('di_varCount').innerText = `${keys.length} variáveis`;
+
+            if (keys.length === 0) {
+                list.innerHTML = `<div class="text-center mt-10 text-di_muted text-xs">Nenhuma variável :root encontrada no CSS inline.</div>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const val = di_appState.rootVars[key];
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-12 gap-4 items-center bg-white/5 p-2 rounded border border-transparent hover:border-di_accent/30 transition";
+                row.innerHTML = `
+                    <div class="col-span-4 font-mono text-xs text-di_accent truncate" title="${key}">${key}</div>
+                    <div class="col-span-6">
+                        <input type="text" value="${val}" class="w-full bg-black/50 border border-di_border rounded px-2 py-1 text-xs text-white focus:border-di_accent focus:outline-none" onchange="di_updateRootVar('${key}', this.value)">
+                    </div>
+                    <div class="col-span-2 text-right">
+                        <button onclick="di_copyText('${key}: ${val};')" class="text-di_muted hover:text-white"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function di_updateRootVar(key, val) {
+            di_appState.rootVars[key] = val;
+            // Optional: Re-inject into preview?
+        }
+
+        function di_downloadCSS() {
+            let cssContent = ":root {\n";
+            for (const [key, val] of Object.entries(di_appState.rootVars)) {
+                cssContent += `    ${key}: ${val};\n`;
+            }
+            cssContent += "}";
+            
+            di_downloadFile('theme-root.css', cssContent);
+        }
+
+        // --- UTILS ---
+        function di_notify(msg) {
+            const toast = document.getElementById('di_toast');
+            document.getElementById('di_toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function di_copyCode() {
+            di_copyText(document.getElementById('di_outputCode').value);
+        }
+
+        function di_copyText(text) {
+            if(!text) return;
+            navigator.clipboard.writeText(text).then(() => di_notify("Copiado para o Clipboard!"));
+        }
+
+        function di_downloadOrb() {
+            const content = document.getElementById('di_outputCode').value;
+            if(!content) return di_notify("Nada para baixar.");
+            di_downloadFile('orb-component.html', content);
+        }
+
+        function di_downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+    </script>
+</body>
+</html>
+
+

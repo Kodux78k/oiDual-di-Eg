@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="trinity">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Nexus Trinity • Orb Command</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            di_bg: '#030407',
+            di_panel: 'rgba(15, 18, 25, 0.85)',
+            di_active: '#00e5ff',
+            di_glow: 'rgba(0, 229, 255, 0.3)',
+            di_purple: '#bd00ff',
+            di_border: 'rgba(255, 255, 255, 0.12)',
+          },
+          animation: {
+            'spin-slow': 'spin 12s linear infinite',
+            'reverse-spin': 'spin 15s linear infinite reverse',
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-smooth': 'pulseSmooth 3s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            pulseSmooth: {
+              '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
+              '50%': { opacity: '0.4', transform: 'scale(0.95)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --active-color: #00e5ff;
+      --glass-border: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      margin: 0;
+      background: #030407;
+      color: #eef3f6;
+      height: 100vh;
+      overflow: hidden;
+      perspective: 1200px;
+    }
+
+    /* === AMBIENTE ESPACIAL === */
+    .spatial-bg {
+      position: fixed; inset: 0;
+      background: 
+        radial-gradient(circle at 50% -20%, rgba(0, 229, 255, 0.15), transparent 70%),
+        radial-gradient(circle at 20% 80%, rgba(189, 0, 255, 0.08), transparent 50%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* === VISION HUD === */
+    .hud {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; padding: 6px 8px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 999px;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .hud-btn {
+      background: transparent;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.6);
+      transition: all 0.3s ease;
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid transparent;
+    }
+
+    .hud-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    
+    .hud-btn.active {
+      background: rgba(0, 229, 255, 0.1);
+      color: var(--active-color);
+      border-color: rgba(0, 229, 255, 0.3);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+    }
+
+    /* === AR PANELS === */
+    .panel {
+      position: fixed; left: 50%; top: 50%;
+      width: 95%; max-width: 900px; height: 80vh;
+      transform: translate(-50%, -50%) scale(0.95);
+      opacity: 0; pointer-events: none;
+      background: rgba(15, 18, 25, 0.85);
+      backdrop-filter: blur(40px) saturate(150%);
+      -webkit-backdrop-filter: blur(40px) saturate(150%);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      display: flex; flex-direction: column;
+      z-index: 500;
+      box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .panel.open {
+      opacity: 1; pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* === THE SVG ORB (Merged & Optimized) === */
+    #splash {
+      position: fixed; inset: 0;
+      display: flex; justify-content: center; align-items: center;
+      perspective: 1000px;
+    }
+
+    .orb-svg {
+      width: 280px; height: 280px;
+      filter: drop-shadow(0 0 40px rgba(0, 229, 255, 0.2));
+      cursor: pointer;
+      transition: transform 0.3s ease-out;
+    }
+    .orb-svg:hover { transform: scale(1.05); }
+
+    /* === SCROLLBAR === */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    
+    /* === LEDS === */
+    .di-led { width: 6px; height: 6px; border-radius: 50%; background: #333; transition: 0.3s; }
+    .di-led.on { background: #00e5ff; box-shadow: 0 0 8px #00e5ff; }
+    .di-led.off { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+
+    /* === CHECKERED BG === */
+    .bg-grid-pattern {
+      background-image: 
+        linear-gradient(45deg, #1a1a1a 25%, transparent 25%), 
+        linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #1a1a1a 75%), 
+        linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="spatial-bg"></div>
+
+  <!-- HUD NAVIGATION -->
+  <nav class="hud">
+    <button onclick="Brain.open('home')" id="nav-home" class="hud-btn active">
+      <i data-lucide="aperture" class="w-4 h-4"></i>
+    </button>
+    <div class="w-px h-4 bg-white/10 mx-1"></div>
+    <button onclick="Brain.open('extractor')" id="nav-extractor" class="hud-btn">
+      <i data-lucide="scan-line" class="w-3 h-3"></i><span>EXTRACTOR</span>
+    </button>
+    <button onclick="Brain.open('cssmaster')" id="nav-cssmaster" class="hud-btn">
+      <i data-lucide="palette" class="w-3 h-3"></i><span>ROOT MASTER</span>
+    </button>
+    <button onclick="Brain.open('config')" id="nav-config" class="hud-btn">
+      <i data-lucide="settings-2" class="w-3 h-3"></i><span>CONFIG</span>
+    </button>
+  </nav>
+
+  <!-- SPLASH / ORB CENTER -->
+  <main id="splash">
+    <!-- SVG Orb (Merged from V3 + Optimized Animation) -->
+    <div class="relative animate-float" onclick="Brain.open('extractor')">
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="orb-svg">
+        <!-- Outer Static Ring -->
+        <circle cx="100" cy="100" r="90" stroke="#1e293b" stroke-width="1" class="opacity-50" />
+        
+        <!-- Rotating Cyan Ring -->
+        <circle cx="100" cy="100" r="90" stroke="#00e5ff" stroke-width="2" stroke-dasharray="20 180" stroke-linecap="round" class="animate-spin-slow opacity-90" />
+        
+        <!-- Rotating Purple Ring (Reverse) -->
+        <circle cx="100" cy="100" r="75" stroke="#bd00ff" stroke-width="1" stroke-dasharray="4 8" class="animate-reverse-spin opacity-70" />
+        
+        <!-- Core Geometry -->
+        <path d="M100 45 L148 72 L148 128 L100 155 L52 128 L52 72 Z" stroke="#00e5ff" stroke-width="0.5" fill="rgba(0, 229, 255, 0.05)" class="animate-pulse-smooth" />
+        
+        <!-- Inner Glow Core -->
+        <circle cx="100" cy="100" r="20" fill="url(#grad1)">
+          <animate attributeName="r" values="20;22;20" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+        </circle>
+        
+        <defs>
+            <radialGradient id="grad1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(100 100) rotate(90) scale(30)">
+                <stop stop-color="#00e5ff" />
+                <stop offset="1" stop-color="#00e5ff" stop-opacity="0" />
+            </radialGradient>
+        </defs>
+      </svg>
+      <div class="absolute -bottom-10 w-full text-center">
+        <span class="text-[10px] font-mono tracking-[0.3em] text-cyan-400 opacity-60">AWAITING INPUT</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- AR PANEL (Unified Container) -->
+  <section id="main-panel" class="panel">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-5 border-b border-white/10 bg-black/20">
+      <div class="flex items-center gap-3">
+        <i data-lucide="cpu" class="text-cyan-400 w-4 h-4"></i>
+        <h2 id="panel-title" class="text-xs font-bold font-mono tracking-widest text-gray-300">SYSTEM_MODULE</h2>
+      </div>
+      <button onclick="Brain.close()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition text-gray-400">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Content Area -->
+    <div id="panel-body" class="flex-1 overflow-hidden relative">
+      <!-- Views will be injected here via JS -->
+    </div>
+  </section>
+
+  <!-- Notification Toast -->
+  <div id="di_toast" class="fixed bottom-8 right-8 bg-black/80 backdrop-blur-md border border-cyan-500/30 text-white px-5 py-3 rounded-lg shadow-2xl translate-y-24 transition-transform duration-300 z-[2000] flex items-center gap-3">
+    <i data-lucide="info" class="text-cyan-400 w-4 h-4"></i>
+    <span class="text-xs font-mono" id="di_toastMsg">System Ready</span>
+  </div>
+
+  <script>
+    /* === BRAIN SYSTEM (FUSION KERNEL) === */
+    const Brain = {
+      state: {
+        activeView: null,
+        html: '',
+        css: '',
+        rootVars: {},
+        visuals: { scale: 1, opacity: 1, y: 0, blur: 0 }
+      },
+
+      init() {
+        lucide.createIcons();
+        this.loadConfig();
+        this.initParallax();
+      },
+
+      initParallax() {
+        document.addEventListener('mousemove', e => {
+          if(window.innerWidth < 768) return; // Disable parallax on mobile
+          const x = (window.innerWidth / 2 - e.clientX) / 60;
+          const y = (window.innerHeight / 2 - e.clientY) / 60;
+
+          const splash = document.querySelector('#splash .orb-svg');
+          if (splash && document.getElementById('main-panel').className.indexOf('open') === -1) {
+            splash.style.transform = `rotateX(${y}deg) rotateY(${-x}deg) translateZ(20px)`;
+          }
+        });
+      },
+
+      open(type) {
+        if(type === 'home') {
+          this.close();
+          return;
+        }
+
+        const p = document.getElementById('main-panel');
+        const b = document.getElementById('panel-body');
+        const t = document.getElementById('panel-title');
+        
+        // Update Active Nav
+        document.querySelectorAll('.hud-btn').forEach(btn => btn.classList.remove('active'));
+        const navBtn = document.getElementById(`nav-${type}`);
+        if(navBtn) navBtn.classList.add('active');
+
+        p.classList.add('open');
+        this.state.activeView = type;
+
+        // Render Content
+        if(type === 'extractor') this.renderExtractor(b, t);
+        if(type === 'cssmaster') this.renderCSSMaster(b, t);
+        if(type === 'config') this.renderConfig(b, t);
+
+        lucide.createIcons();
+      },
+
+      close() {
+        document.getElementById('main-panel').classList.remove('open');
+        document.querySelectorAll('.hud-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('nav-home').classList.add('active');
+        // Reset transform
+        const splash = document.querySelector('#splash .orb-svg');
+        if(splash) splash.style.transform = 'none';
+      },
+
+      /* --- RENDERERS --- */
+
+      renderExtractor(container, titleEl) {
+        titleEl.innerText = "ORB_EXTRACTOR_V3";
+        container.innerHTML = `
+          <div class="flex h-full flex-col lg:flex-row">
+            <!-- Input Column -->
+            <div class="w-full lg:w-1/3 bg-black/20 border-r border-white/5 flex flex-col p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] font-mono opacity-50">SOURCE_INPUT</span>
+                <div class="flex gap-2">
+                  <button onclick="document.getElementById('file-upload').click()" class="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-cyan-400">UPLOAD</button>
+                  <button onclick="Brain.processExtraction()" class="text-[10px] bg-cyan-500 hover:bg-cyan-400 text-black px-2 py-1 rounded font-bold">RUN</button>
+                </div>
+                <input type="file" id="file-upload" class="hidden" onchange="Brain.handleUpload(this)">
+              </div>
+              <div class="relative flex-1 group">
+                <textarea id="di_inputSource" class="w-full h-full bg-black/40 border border-white/10 rounded-lg p-3 font-mono text-[11px] text-gray-400 focus:outline-none focus:border-cyan-500 resize-none" placeholder="<!-- Paste HTML code here -->">${this.state.html || ''}</textarea>
+                <div id="drop-overlay" class="hidden absolute inset-0 bg-cyan-500/10 border-2 border-dashed border-cyan-500 flex items-center justify-center pointer-events-none rounded-lg"><span class="text-cyan-400 font-bold text-xs">DROP FILE</span></div>
+              </div>
+            </div>
+
+            <!-- Preview & Controls -->
+            <div class="flex-1 flex flex-col relative bg-black/40">
+              <!-- Toolbar -->
+              <div class="h-10 border-b border-white/5 flex items-center justify-between px-4 bg-black/20">
+                <span class="text-[10px] font-mono opacity-50">PREVIEW_CANVAS</span>
+                <div class="flex items-center gap-2">
+                   <button onclick="Brain.downloadOrb()" class="text-gray-400 hover:text-white"><i data-lucide="download" class="w-4 h-4"></i></button>
+                   <button onclick="Brain.copyCode()" class="text-gray-400 hover:text-white"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                </div>
+              </div>
+              
+              <!-- Canvas -->
+              <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-grid-pattern" id="preview-container">
+                <div id="preview-target" class="transition-all duration-200">
+                  ${this.state.extractedHTML ? this.state.extractedHTML : '<span class="text-xs font-mono opacity-30">NO_DATA_STREAM</span>'}
+                </div>
+              </div>
+
+              <!-- Visual Modulator (Bottom Bar) -->
+              <div class="h-auto border-t border-white/10 bg-black/60 backdrop-blur p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[10px] font-bold text-cyan-400">VISUAL MODULATOR</span>
+                  <button onclick="Brain.resetVisuals()" class="text-[10px] opacity-50 hover:opacity-100">RESET</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div class="flex justify-between text-[9px] opacity-60 mb-1"><span>SCALE</span><span id="lbl-scale">1.0</span></div>
+                    <input type="range" class="w-full h-1 bg-white/10 rounded appearance-none" min="0.5" max="2" step="0.1" value="${this.state.visuals.scale}" oninput="Brain.updateVisuals('scale', this.value)">
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-[9px] opacity-60 mb-1"><span>OPACITY</span><span id="lbl-opacity">100%</span></div>
+                    <input type="range" class="w-full h-1 bg-white/10 rounded appearance-none" min="0" max="1" step="0.1" value="${this.state.visuals.opacity}" oninput="Brain.updateVisuals('opacity', this.value)">
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-[9px] opacity-60 mb-1"><span>Y-AXIS</span><span id="lbl-y">0px</span></div>
+                    <input type="range" class="w-full h-1 bg-white/10 rounded appearance-none" min="-100" max="100" step="10" value="${this.state.visuals.y}" oninput="Brain.updateVisuals('y', this.value)">
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-[9px] opacity-60 mb-1"><span>BLUR</span><span id="lbl-blur">0px</span></div>
+                    <input type="range" class="w-full h-1 bg-white/10 rounded appearance-none" min="0" max="20" step="1" value="${this.state.visuals.blur}" oninput="Brain.updateVisuals('blur', this.value)">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Re-inject styles if available
+        if(this.state.css) {
+           const s = document.createElement('style');
+           s.innerHTML = this.state.css;
+           container.appendChild(s);
+        }
+        
+        // Setup Drag Drop
+        const dropArea = document.querySelector('.group');
+        const overlay = document.getElementById('drop-overlay');
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); overlay.classList.remove('hidden'); });
+        dropArea.addEventListener('dragleave', () => overlay.classList.add('hidden'));
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            overlay.classList.add('hidden');
+            if(e.dataTransfer.files.length) this.handleUpload({files: e.dataTransfer.files});
+        });
+      },
+
+      renderCSSMaster(container, titleEl) {
+        titleEl.innerText = "ROOT_VAR_MASTER";
+        container.innerHTML = `
+          <div class="flex flex-col h-full p-6">
+            <div class="flex justify-between items-center mb-6">
+               <p class="text-xs opacity-60 max-w-md">Extract and modify :root CSS variables from the source code. Create unified design systems.</p>
+               <button onclick="Brain.extractRoot()" class="btn-primary bg-di_purple text-white px-4 py-2 rounded text-xs font-bold shadow-[0_0_15px_rgba(189,0,255,0.3)]">EXTRACT VARIABLES</button>
+            </div>
+
+            <div class="flex-1 bg-black/30 border border-white/10 rounded-xl overflow-hidden flex flex-col">
+               <div class="bg-white/5 p-3 grid grid-cols-12 gap-4 text-[10px] font-mono font-bold text-gray-400">
+                  <div class="col-span-4">VARIABLE</div>
+                  <div class="col-span-6">VALUE</div>
+                  <div class="col-span-2 text-right">ACTION</div>
+               </div>
+               <div id="css-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                  <!-- List Items -->
+                  <div class="flex flex-col items-center justify-center h-40 opacity-30">
+                     <i data-lucide="wind" class="w-8 h-8 mb-2"></i>
+                     <span class="text-xs">No variables found</span>
+                  </div>
+               </div>
+               <div class="bg-black/50 p-4 border-t border-white/10 flex justify-between">
+                  <span class="text-xs opacity-50" id="var-count">0 vars</span>
+                  <button onclick="Brain.downloadCSS()" class="text-xs hover:text-cyan-400 flex items-center gap-2"><i data-lucide="download" class="w-3 h-3"></i> Download .css</button>
+               </div>
+            </div>
+          </div>
+        `;
+        if(Object.keys(this.state.rootVars).length > 0) this.renderRootList();
+      },
+
+      renderConfig(container, titleEl) {
+        titleEl.innerText = "SYSTEM_CONFIG";
+        container.innerHTML = `
+          <div class="p-8 max-w-lg mx-auto w-full">
+            <div class="bg-black/40 border border-white/10 rounded-2xl p-6 space-y-6">
+               <h3 class="text-sm font-bold text-cyan-400 mb-4">CREDENTIALS_STORAGE</h3>
+               
+               <div class="space-y-1">
+                 <label class="text-[10px] font-mono opacity-50 ml-1">USER_NAME (di_userName)</label>
+                 <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full ${localStorage.getItem('di_userName') ? 'bg-green-500' : 'bg-red-500'}" id="led-user"></div>
+                    <input type="text" id="cfg-user" class="flex-1 bg-black border border-white/10 rounded p-2 text-xs focus:border-cyan-500 focus:outline-none" oninput="Brain.saveConfig()" value="${localStorage.getItem('di_userName') || ''}">
+                 </div>
+               </div>
+
+               <div class="space-y-1">
+                 <label class="text-[10px] font-mono opacity-50 ml-1">MODEL_NAME (di_modelName)</label>
+                 <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full ${localStorage.getItem('di_modelName') ? 'bg-green-500' : 'bg-red-500'}" id="led-model"></div>
+                    <input type="text" id="cfg-model" class="flex-1 bg-black border border-white/10 rounded p-2 text-xs focus:border-cyan-500 focus:outline-none" oninput="Brain.saveConfig()" value="${localStorage.getItem('di_modelName') || ''}">
+                 </div>
+               </div>
+
+               <div class="space-y-1">
+                 <label class="text-[10px] font-mono opacity-50 ml-1">API_KEY (di_apiKey)</label>
+                 <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full ${localStorage.getItem('di_apiKey') ? 'bg-green-500' : 'bg-red-500'}" id="led-key"></div>
+                    <input type="password" id="cfg-key" class="flex-1 bg-black border border-white/10 rounded p-2 text-xs focus:border-cyan-500 focus:outline-none" oninput="Brain.saveConfig()" value="${localStorage.getItem('di_apiKey') || ''}">
+                 </div>
+               </div>
+
+               <div class="pt-4 text-right">
+                  <span class="text-[10px] text-green-400 opacity-0 transition" id="save-msg">SYNCED_TO_LOCAL_STORAGE</span>
+               </div>
+            </div>
+          </div>
+        `;
+      },
+
+      /* --- LOGIC CORES --- */
+
+      processExtraction() {
+        const raw = document.getElementById('di_inputSource').value;
+        if (!raw.trim()) return this.notify("Input source empty");
+        this.state.html = raw; // Save state
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(raw, 'text/html');
+        
+        // Find Orb/Target
+        let target = doc.querySelector('#orb-canvas') || 
+                     doc.querySelector('.orb-container') ||
+                     doc.querySelector('[class*="orb"]') ||
+                     doc.querySelector('svg');
+        
+        if (!target) {
+             const divs = doc.querySelectorAll('div');
+             for(let d of divs) {
+                 if(d.innerHTML.includes('svg') || d.className.includes('anim')) { target = d; break; }
+             }
+        }
+
+        if (!target) return this.notify("No valid component found");
+
+        this.state.extractedHTML = target.outerHTML;
+        
+        // Extract CSS
+        let css = "";
+        doc.querySelectorAll('style').forEach(s => css += s.innerHTML + "\n");
+        this.state.css = css;
+
+        this.renderExtractor(document.getElementById('panel-body'), document.getElementById('panel-title')); // Re-render to show preview
+        this.notify("Extraction Complete");
+      },
+
+      updateVisuals(prop, val) {
+        this.state.visuals[prop] = val;
+        const target = document.getElementById('preview-target');
+        if(target) {
+            target.style.transform = `scale(${this.state.visuals.scale}) translateY(${this.state.visuals.y}px)`;
+            target.style.opacity = this.state.visuals.opacity;
+            target.style.filter = `blur(${this.state.visuals.blur}px)`;
+        }
+        // Update Labels
+        if(document.getElementById(`lbl-${prop}`)) {
+            document.getElementById(`lbl-${prop}`).innerText = val + (prop === 'scale' ? '' : (prop === 'y' || prop === 'blur' ? 'px' : '%'));
+        }
+      },
+      
+      resetVisuals() {
+        this.state.visuals = { scale: 1, opacity: 1, y: 0, blur: 0 };
+        this.renderExtractor(document.getElementById('panel-body'), document.getElementById('panel-title'));
+      },
+
+      extractRoot() {
+        const raw = this.state.html || document.getElementById('di_inputSource')?.value;
+        if(!raw) return this.notify("No source code loaded");
+
+        const rootRegex = /:root\s*{([^}]+)}/g;
+        let match;
+        this.state.rootVars = {};
+
+        while ((match = rootRegex.exec(raw)) !== null) {
+            const content = match[1].split(';');
+            content.forEach(decl => {
+                const parts = decl.split(':');
+                if (parts.length === 2 && parts[0].trim().startsWith('--')) {
+                    this.state.rootVars[parts[0].trim()] = parts[1].trim();
+                }
+            });
+        }
+        this.renderRootList();
+        this.notify(`Extracted ${Object.keys(this.state.rootVars).length} variables`);
+      },
+
+      renderRootList() {
+        const list = document.getElementById('css-list');
+        if(!list) return;
+        list.innerHTML = '';
+        
+        const keys = Object.keys(this.state.rootVars);
+        const countEl = document.getElementById('var-count');
+        if(countEl) countEl.innerText = `${keys.length} vars`;
+
+        keys.forEach(key => {
+            const val = this.state.rootVars[key];
+            const div = document.createElement('div');
+            div.className = "grid grid-cols-12 gap-4 items-center bg-white/5 p-2 rounded border border-transparent hover:border-cyan-500/30 transition mb-1";
+            div.innerHTML = `
+                <div class="col-span-4 font-mono text-[10px] text-cyan-400 truncate" title="${key}">${key}</div>
+                <div class="col-span-6"><input type="text" value="${val}" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-cyan-500"></div>
+                <div class="col-span-2 text-right"><button onclick="navigator.clipboard.writeText('${key}: ${val};')" class="opacity-50 hover:opacity-100"><i data-lucide="copy" class="w-3 h-3"></i></button></div>
+            `;
+            list.appendChild(div);
+        });
+        lucide.createIcons();
+      },
+
+      handleUpload(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            this.state.html = e.target.result;
+            if(this.state.activeView === 'extractor') {
+                document.getElementById('di_inputSource').value = this.state.html;
+                this.notify("File Loaded");
+            }
+        };
+        reader.readAsText(file);
+      },
+
+      saveConfig() {
+         localStorage.setItem('di_userName', document.getElementById('cfg-user').value);
+         localStorage.setItem('di_modelName', document.getElementById('cfg-model').value);
+         localStorage.setItem('di_apiKey', document.getElementById('cfg-key').value);
+         
+         // Update LEDs
+         ['user', 'model', 'key'].forEach(k => {
+             const v = document.getElementById(`cfg-${k}`).value;
+             const led = document.getElementById(`led-${k}`);
+             led.className = `w-2 h-2 rounded-full ${v ? 'bg-green-500' : 'bg-red-500'}`;
+         });
+
+         const msg = document.getElementById('save-msg');
+         msg.style.opacity = '1';
+         setTimeout(() => msg.style.opacity = '0', 2000);
+      },
+
+      loadConfig() {
+         // This is handled by renderConfig reading localStorage directly when opening view
+      },
+
+      downloadCSS() {
+         let c = ":root {\n";
+         for(let k in this.state.rootVars) c += `  ${k}: ${this.state.rootVars[k]};\n`;
+         c += "}";
+         this.download("theme.css", c);
+      },
+
+      downloadOrb() {
+         if(!this.state.extractedHTML) return;
+         this.download("orb.html", this.state.extractedHTML + `\n<style>\n${this.state.css}\n</style>`);
+      },
+
+      copyCode() {
+         if(this.state.extractedHTML) {
+             navigator.clipboard.writeText(this.state.extractedHTML);
+             this.notify("Copied to Clipboard");
+         }
+      },
+
+      download(name, content) {
+         const a = document.createElement('a');
+         a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
+         a.download = name;
+         a.click();
+      },
+
+      notify(msg) {
+        const t = document.getElementById('di_toast');
+        const m = document.getElementById('di_toastMsg');
+        m.innerText = msg;
+        t.style.transform = "translateY(0)";
+        setTimeout(() => t.style.transform = "translateY(100px)", 3000);
+      }
+    };
+
+    window.onload = () => Brain.init();
+  </script>
+</body>
+</html>
+
+
